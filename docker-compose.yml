@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: buglens_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: buglens_db
+      POSTGRES_USER: buglens
+      POSTGRES_PASSWORD: buglens123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U buglens -d buglens_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: buglens_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

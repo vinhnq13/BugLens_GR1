@@ -1,0 +1,277 @@
+// ============================================================
+// BugLens Prisma Schema
+// Database: PostgreSQL 16
+// ORM: Prisma
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+/// Role of a user in the global system
+enum UserRole {
+  ADMIN
+  PROJECT_MANAGER
+  DEVELOPER
+  TESTER
+}
+
+/// Role of a user within a specific project
+enum ProjectRole {
+  OWNER
+  MAINTAINER
+  DEVELOPER
+  TESTER
+  VIEWER
+}
+
+/// Lifecycle status of a bug report
+enum IssueStatus {
+  NEW
+  TRIAGED
+  IN_PROGRESS
+  RESOLVED
+  VERIFIED
+  CLOSED
+  REOPENED
+}
+
+/// How severe the bug is
+enum IssueSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+/// Priority for fixing the bug
+enum IssuePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+/// Category of the bug
+enum IssueCategory {
+  UI
+  NETWORK
+  BACKEND
+  AUTH
+  PERFORMANCE
+  DATA
+  UNKNOWN
+}
+
+/// Environment where the bug was found
+enum Environment {
+  DEVELOPMENT
+  TESTING
+  STAGING
+  PRODUCTION
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+/// A registered user of the BugLens system
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(TESTER)
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  projectMemberships ProjectMember[]
+  reportedIssues     Issue[]         @relation("ReportedBy")
+  assignedIssues     Issue[]         @relation("AssignedTo")
+  comments           Comment[]
+  issueEvents        IssueEvent[]
+
+  @@map("users")
+}
+
+/// A software project being tracked in BugLens
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  slug        String   @unique // URL-friendly identifier e.g. "my-project"
+  logoUrl     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  members ProjectMember[]
+  issues  Issue[]
+
+  @@map("projects")
+}
+
+/// Maps a User to a Project with a specific role (many-to-many join table)
+model ProjectMember {
+  id        String      @id @default(uuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(TESTER)
+  joinedAt  DateTime    @default(now())
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+/// A bug report submitted by a tester via the browser extension
+model Issue {
+  id          String        @id @default(uuid())
+  projectId   String
+  reporterId  String
+  assigneeId  String?
+  title       String
+  description String?
+  status      IssueStatus   @default(NEW)
+  severity    IssueSeverity @default(MEDIUM)
+  priority    IssuePriority @default(MEDIUM)
+  category    IssueCategory @default(UNKNOWN)
+
+  // Browser context captured by the extension
+  url              String?
+  browser          String?
+  os               String?
+  viewport         String? // e.g. "1920x1080"
+  screenshotBase64 String? // Base64-encoded PNG screenshot
+
+  // Error context
+  errorMessage String?
+  stackTrace   String?
+  consoleLogs  String? // JSON string of console log entries
+  networkLogs  String? // JSON string of network request entries
+
+  // Environment metadata
+  environment    Environment @default(PRODUCTION)
+  sprintName     String?
+  releaseVersion String?
+  commitHash     String?
+  pullRequestUrl String?
+
+  // Code location hints
+  component   String?
+  packageName String?
+  className   String?
+  methodName  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporter   User       @relation("ReportedBy", fields: [reporterId], references: [id])
+  assignee   User?      @relation("AssignedTo", fields: [assigneeId], references: [id])
+  comments   Comment[]
+  events     IssueEvent[]
+  aiAnalysis AIAnalysis?
+
+  @@map("issues")
+}
+
+/// A comment left by a developer or tester on an issue
+model Comment {
+  id        String   @id @default(uuid())
+  issueId   String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  issue  Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author User  @relation(fields: [authorId], references: [id])
+
+  @@map("comments")
+}
+
+/// An audit log entry recording a change to an issue (status change, assignment, etc.)
+model IssueEvent {
+  id        String   @id @default(uuid())
+  issueId   String
+  actorId   String
+  eventType String   // e.g. "STATUS_CHANGED", "ASSIGNED", "COMMENT_ADDED"
+  metadata  String?  // JSON string with event details (e.g. { from: "NEW", to: "TRIAGED" })
+  createdAt DateTime @default(now())
+
+  // Relations
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  actor User  @relation(fields: [actorId], references: [id])
+
+  @@map("issue_events")
+}
+
+/// AI-generated analysis result for a bug report
+model AIAnalysis {
+  id               String   @id @default(uuid())
+  issueId          String   @unique
+  category         String?  // Predicted bug category
+  severity         String?  // Predicted severity
+  rootCause        String?  // Suggested root cause explanation
+  fixSuggestion    String?  // Short fix suggestion from AI
+  confidenceScore  Float?   // Confidence score 0.0 - 1.0
+  isDuplicate      Boolean  @default(false)
+  analysisModel    String?  // Which AI model produced this result
+  rawResponse      String?  // Full JSON response from AI service
+  analyzedAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  issue               Issue                @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  duplicateCandidates DuplicateCandidate[]
+  testCaseSuggestions TestCaseSuggestion[]
+
+  @@map("ai_analyses")
+}
+
+/// A potential duplicate issue identified by the AI
+model DuplicateCandidate {
+  id           String  @id @default(uuid())
+  analysisId   String
+  candidateId  String  // Issue ID of the potential duplicate
+  similarityScore Float // 0.0 - 1.0
+
+  // Relations
+  analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@map("duplicate_candidates")
+}
+
+/// A test case suggested by the AI to verify a bug fix
+model TestCaseSuggestion {
+  id           String  @id @default(uuid())
+  analysisId   String
+  title        String
+  precondition String?
+  steps        String  // Numbered steps as plain text or JSON array
+  expectedResult String
+  priority     String  @default("MEDIUM")
+
+  // Relations
+  analysis AIAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@map("test_case_suggestions")
+}
