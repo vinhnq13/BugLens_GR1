@@ -1,43 +1,73 @@
-# apps/dashboard-web
+# React + TypeScript + Vite
 
-**BugLens Dashboard Web** — The main frontend interface for developers and project managers.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## Purpose
+Currently, two official plugins are available:
 
-This React + Vite + TypeScript application provides the visual interface for:
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-- Viewing all submitted bug reports in a searchable list
-- Reviewing individual issue detail with screenshot preview
-- Reading AI analysis results (category, severity, root cause, test cases)
-- Updating issue status through the lifecycle workflow (Open → In Progress → Resolved)
-- Viewing analytics and charts
+## React Compiler
 
-## Planned Tech Stack
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-| Technology | Role |
-|---|---|
-| React 18 | UI library |
-| Vite | Build tool / dev server |
-| TypeScript | Type safety |
-| Tailwind CSS | Styling |
-| React Router | Client-side routing |
-| Axios | HTTP client for API calls |
+## Expanding the ESLint configuration
 
-## Planned Pages
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-| Route | Page | Description |
-|---|---|---|
-| `/` | Overview | Summary charts and recent issues |
-| `/issues` | Issue List | Filterable, searchable list of all issues |
-| `/issues/:id` | Issue Detail | Full issue info + screenshot + AI analysis |
-| `/projects` | Projects | Project list and management |
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
 
-## Getting Started (Phase 4)
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
 
-```bash
-npm install
-npm run dev
-# Runs on http://localhost:5173
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
-> ⚠️ Implementation begins in **Phase 4** of the development plan.
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
