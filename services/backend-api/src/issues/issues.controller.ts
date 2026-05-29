@@ -27,6 +27,8 @@ import { AddCommentDto } from './dto/add-comment.dto';
  *   PATCH  /api/v1/issues/:id/status
  *   PATCH  /api/v1/issues/:id/assign
  *   POST   /api/v1/issues/:id/comments
+ *   POST   /api/v1/issues/:id/analyze      ← NEW (Mission 5)
+ *   GET    /api/v1/issues/:id/ai-analysis  ← NEW (Mission 5)
  */
 @Controller('issues')
 export class IssuesController {
@@ -99,7 +101,7 @@ export class IssuesController {
     };
   }
 
-  // ── POST /issues/:id/comments ──────────────────────────────────────────────
+  // ── POST /issues/:id/comments ────────────────────────────────────────────────────────
 
   @Post(':id/comments')
   @HttpCode(HttpStatus.CREATED)
@@ -111,6 +113,31 @@ export class IssuesController {
     return {
       success: true,
       message: 'Comment added successfully',
+      data,
+    };
+  }
+
+  // ── POST /issues/:id/analyze ────────────────────────────────────────────────────────
+
+  @Post(':id/analyze')
+  @HttpCode(HttpStatus.OK)
+  async analyzeIssue(@Param('id') id: string) {
+    const data = await this.issuesService.analyzeIssue(id);
+    return {
+      success: true,
+      message: 'Issue analyzed successfully',
+      data,
+    };
+  }
+
+  // ── GET /issues/:id/ai-analysis ─────────────────────────────────────────────────────
+
+  @Get(':id/ai-analysis')
+  async getAiAnalysis(@Param('id') id: string) {
+    const data = await this.issuesService.getAiAnalysis(id);
+    return {
+      success: true,
+      message: data ? 'AI analysis retrieved successfully' : 'No AI analysis found for this issue',
       data,
     };
   }
