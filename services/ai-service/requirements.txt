@@ -1,0 +1,6 @@
+# BugLens AI Service — Python dependencies
+# Rule-based analysis only: no external LLM, no heavy ML frameworks needed.
+
+fastapi==0.115.5          # Web framework
+uvicorn[standard]==0.32.1 # ASGI server
+pydantic==2.10.2          # Request/response validation (ships with FastAPI)
